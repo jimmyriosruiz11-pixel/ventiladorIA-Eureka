@@ -378,7 +378,7 @@ async function interpretarConIA(texto) {
     `El ventilador esta actualmente: ${estadoDescrito}. ` +
     `Fecha y hora reales en este momento (Peru): ${fechaHoraActual}. Usa este dato si te preguntan la hora, la fecha, o algo relativo a "hoy". No inventes otra fecha ni digas que no sabes que hora es. ` +
     `El usuario te acaba de hablar (transcripcion de voz, puede tener errores de reconocimiento). ` +
-    `Responde UNICAMENTE con un objeto JSON, sin markdown ni texto extra, con este formato exacto: ` +
+    `Responde UNICAMENTE con un objeto JSON plano (sin usar bloques de codigo ni comillas triples, solo el JSON directo), con este formato exacto: ` +
     `{"accion": "encender" | "apagar" | "mas_rapido" | "mas_lento" | "reproducir_musica" | "pausar_musica" | "reanudar_musica" | "detener_musica" | "ninguna", "cancion": "nombre de la cancion y artista a buscar en YouTube (SOLO si accion es reproducir_musica, si no, pon null)", "respuesta": "lo que dirias en voz alta, en español, con tu personalidad"}. ` +
     `Usa "reproducir_musica" cuando te pidan poner una cancion especifica (pon el nombre/artista mencionado o el mas probable en "cancion"). Usa "pausar_musica"/"reanudar_musica"/"detener_musica" para pausar, seguir, o parar la musica. ` +
     `Usa accion "ninguna" para todo lo demas (conversacion, tareas, opiniones, etc) — ahi platica normal en "respuesta" (puede ser mas largo y detallado si la pregunta lo amerita, no te limites a frases cortas). ` +
@@ -400,7 +400,7 @@ async function interpretarConIA(texto) {
         system_instruction: { parts: [{ text: systemPrompt }] },
         contents: contenidos,
         tools: [{ google_search: {} }],
-        generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 700, temperature: 1.0 }
+        generationConfig: { maxOutputTokens: 700, temperature: 1.0 }
       })
     });
 
@@ -419,13 +419,14 @@ async function interpretarConIA(texto) {
     }
 
     const textoCrudo = datos.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim();
+    const limpio = textoCrudo.replace(/```json|```/gi, '').trim();
     let json;
     try {
-      json = JSON.parse(textoCrudo);
+      json = JSON.parse(limpio);
     } catch (e) {
-      const inicio = textoCrudo.indexOf('{');
-      const fin = textoCrudo.lastIndexOf('}');
-      json = JSON.parse(textoCrudo.slice(inicio, fin + 1));
+      const inicio = limpio.indexOf('{');
+      const fin = limpio.lastIndexOf('}');
+      json = JSON.parse(limpio.slice(inicio, fin + 1));
     }
 
     if (json.accion === 'reproducir_musica' && json.cancion) {
