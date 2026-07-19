@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ojitos — Control por voz</title>
+<style>
+  :root {
+    --fondo: #0b1220;
+    --panel: #121b2e;
+    --panel-borde: #1f2c46;
+    --aqua: #5ee7df;
+    --morado: #a78bfa;
+    --coral: #ff6b6b;
+    --texto: #e8edf5;
+    --texto-tenue: #7d8aa3;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(circle at 50% -10%, #16233d 0%, var(--fondo) 55%);
+    color: var(--texto);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 32px 16px 60px;
+  }
+
+  .tarjeta { width: 100%; max-width: 420px; }
+
+  h1 {
+    font-family: 'Baloo 2', 'Inter', sans-serif;
+    font-size: 26px;
+    text-align: center;
+    margin: 0 0 4px;
+    letter-spacing: 0.3px;
+  }
+  .subtitulo {
+    text-align: center;
+    color: var(--texto-tenue);
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+  .badge-ia {
+    display: block;
+    text-align: center;
+    font-size: 11px;
+    color: var(--morado);
+    margin-bottom: 24px;
+    min-height: 14px;
+  }
+
+  .ojos-caja { display: flex; justify-content: center; gap: 26px; margin-bottom: 10px; }
+  .ojo {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: var(--panel); border: 2px solid var(--panel-borde);
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.6s ease; overflow: hidden;
+  }
+  .pupila {
+    width: 26px; height: 26px; border-radius: 50%; background: var(--aqua);
+    transition: transform 0.4s ease, background 0.6s ease, height 0.15s ease;
+  }
+  .ojo.dormido .pupila { height: 4px; border-radius: 3px; }
+  .ojo.parpadeo .pupila { height: 4px; }
+  .ojo.pensando .pupila { background: var(--morado); animation: pensar 0.9s ease-in-out infinite; }
+  @keyframes pensar { 0%,100% { transform: scale(1); } 50% { transform: scale(0.7); } }
+
+  .estado-texto { text-align: center; font-size: 13px; color: var(--texto-tenue); margin-bottom: 26px; min-height: 16px; }
+  .estado-texto b { color: var(--texto); font-weight: 600; }
+
+  .mic-contenedor { display: flex; justify-content: center; margin-bottom: 8px; }
+  .mic-boton {
+    position: relative; width: 96px; height: 96px; border-radius: 50%; border: none;
+    background: linear-gradient(160deg, var(--aqua), #2fa79c);
+    color: #06231f; font-size: 34px; cursor: pointer;
+    box-shadow: 0 0 0 0 rgba(94,231,223,0.5);
+    transition: transform 0.15s ease, background 0.3s ease;
+  }
+  .mic-boton:active { transform: scale(0.96); }
+  .mic-boton.escuchando {
+    background: linear-gradient(160deg, var(--coral), #b23a3a);
+    color: #2b0c0c; animation: pulso 1.4s ease-out infinite;
+  }
+  @keyframes pulso {
+    0%   { box-shadow: 0 0 0 0 rgba(255,107,107,0.45); }
+    70%  { box-shadow: 0 0 0 22px rgba(255,107,107,0); }
+    100% { box-shadow: 0 0 0 0 rgba(255,107,107,0); }
+  }
+  .mic-etiqueta { text-align: center; font-size: 13px; color: var(--texto-tenue); margin: 12px 0 28px; }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--panel-borde);
+    border-radius: 16px; padding: 18px 18px 20px; margin-bottom: 16px;
+  }
+  .panel-titulo { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--texto-tenue); margin-bottom: 10px; }
+  .barra-fondo { width: 100%; height: 10px; background: #1a2740; border-radius: 6px; overflow: hidden; }
+  .barra-relleno { height: 100%; width: 0%; background: linear-gradient(90deg, var(--aqua), var(--morado)); transition: width 0.4s ease; }
+
+  .botones-manuales { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+  .botones-manuales button {
+    padding: 12px 8px; border-radius: 10px; border: 1px solid var(--panel-borde);
+    background: #16223a; color: var(--texto); font-size: 13px; cursor: pointer;
+  }
+  .botones-manuales button:hover { border-color: var(--aqua); }
+
+  .registro { max-height: 170px; overflow-y: auto; font-size: 12.5px; color: var(--texto-tenue); line-height: 1.6; }
+  .registro div span { color: var(--aqua); }
+  .registro div em { color: var(--morado); font-style: normal; }
+
+  details { color: var(--texto-tenue); font-size: 12.5px; }
+  details summary { cursor: pointer; margin-bottom: 8px; }
+  details input {
+    width: 100%; padding: 8px 10px; border-radius: 8px;
+    border: 1px solid var(--panel-borde); background: #0e1728; color: var(--texto); margin-top: 6px;
+  }
+  .aviso {
+    background: #241a10; border: 1px solid #4a3418; color: #e8c88a;
+    border-radius: 8px; padding: 8px 10px; font-size: 11.5px; margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+<div class="tarjeta">
+  <h1>Ojitos</h1>
+  <div class="subtitulo">Control por voz del ventilador</div>
+  <div class="badge-ia" id="badgeIA"></div>
+
+  <div class="ojos-caja">
+    <div class="ojo dormido" id="ojoIzq"><div class="pupila"></div></div>
+    <div class="ojo dormido" id="ojoDer"><div class="pupila"></div></div>
+  </div>
+  <div class="estado-texto" id="estadoTexto">Sin conexion todavia</div>
+
+  <div class="mic-contenedor">
+    <button class="mic-boton" id="micBoton">🎤</button>
+  </div>
+  <div class="mic-etiqueta" id="micEtiqueta">Toca para hablarle al ventilador</div>
+
+  <div class="panel">
+    <div class="panel-titulo">Velocidad</div>
+    <div class="barra-fondo"><div class="barra-relleno" id="barraVelocidad"></div></div>
+    <div class="botones-manuales">
+      <button id="btnEncender">Encender</button>
+      <button id="btnApagar">Apagar</button>
+      <button id="btnMasLento">− Más lento</button>
+      <button id="btnMasRapido">+ Más rápido</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-titulo">Conversación</div>
+    <div class="registro" id="registro"><div>Esperando comandos de voz…</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-titulo">Música</div>
+    <div id="reproductorYT"></div>
+    <div style="font-size:11.5px; color:var(--texto-tenue); margin-top:8px;">Si pides una canción y no suena, toca una vez sobre el reproductor (los navegadores a veces bloquean el audio automático).</div>
+  </div>
+
+  <details>
+    <summary>Configuración</summary>
+    <label>Dirección del ESP32
+      <input type="text" id="direccionESP" value="ojitos.local">
+    </label>
+    <div style="margin-top:10px;">Si <code>ojitos.local</code> no conecta, usa la IP del Monitor Serie (ej. 192.168.1.45).</div>
+
+    <label style="display:block; margin-top:14px;">Clave de API de Gemini (Google AI Studio)
+      <input type="password" id="apiKeyInput" placeholder="AIza...">
+    </label>
+    <div class="aviso">Esta clave se guarda solo en este navegador (nunca se envía a nadie más que a Google). No compartas este archivo con tu clave ya puesta. Consíguela gratis en aistudio.google.com/apikey</div>
+
+    <label style="display:block; margin-top:14px;">Clave de API de YouTube Data (para buscar canciones)
+      <input type="password" id="ytApiKeyInput" placeholder="AIza...">
+    </label>
+    <div class="aviso">Sácala gratis en console.cloud.google.com (habilita "YouTube Data API v3" y crea una clave). También se guarda solo en este navegador.</div>
+  </details>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const ojoIzq = $('ojoIzq'), ojoDer = $('ojoDer');
+const estadoTexto = $('estadoTexto');
+const micBoton = $('micBoton');
+const micEtiqueta = $('micEtiqueta');
+const barraVelocidad = $('barraVelocidad');
+const registro = $('registro');
+const direccionESP = $('direccionESP');
+const apiKeyInput = $('apiKeyInput');
+const ytApiKeyInput = $('ytApiKeyInput');
+const badgeIA = $('badgeIA');
+
+// --- Persistencia simple en este navegador ---
+direccionESP.value = localStorage.getItem('ojitos_esp_addr') || 'ojitos.local';
+apiKeyInput.value = localStorage.getItem('ojitos_api_key') || '';
+ytApiKeyInput.value = localStorage.getItem('ojitos_yt_key') || '';
+direccionESP.onchange = () => localStorage.setItem('ojitos_esp_addr', direccionESP.value.trim());
+apiKeyInput.onchange = () => localStorage.setItem('ojitos_api_key', apiKeyInput.value.trim());
+ytApiKeyInput.onchange = () => localStorage.setItem('ojitos_yt_key', ytApiKeyInput.value.trim());
+
+// --- Reproductor de YouTube ---
+let ytPlayer = null;
+let ytListo = false;
+const tagYT = document.createElement('script');
+tagYT.src = 'https://www.youtube.com/iframe_api';
+document.head.appendChild(tagYT);
+
+window.onYouTubeIframeAPIReady = function () {
+  ytPlayer = new YT.Player('reproductorYT', {
+    height: '170',
+    width: '100%',
+    videoId: '',
+    playerVars: { autoplay: 1 },
+    events: { onReady: () => { ytListo = true; } }
+  });
+};
+
+async function buscarYReproducirCancion(consulta) {
+  const ytKey = ytApiKeyInput.value.trim();
+  if (!ytKey) {
+    agregarRegistro('⚠️ Falta tu clave de API de YouTube (en Configuración) para poder buscar canciones.');
+    return;
+  }
+  try {
+    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=1&q=${encodeURIComponent(consulta)}&key=${ytKey}`;
+    const resp = await fetch(url);
+    const datos = await resp.json();
+    if (datos.error) {
+      agregarRegistro(`⚠️ Error de YouTube: ${datos.error.message}`);
+      return;
+    }
+    const video = datos.items && datos.items[0];
+    if (!video) {
+      agregarRegistro(`No encontré nada para "${consulta}" en YouTube.`);
+      return;
+    }
+    if (ytPlayer && ytListo) {
+      ytPlayer.loadVideoById(video.id.videoId);
+    }
+    agregarRegistro(`🎵 Reproduciendo: <span>${video.snippet.title}</span>`);
+  } catch (e) {
+    agregarRegistro('⚠️ No se pudo buscar la canción (revisa tu clave de YouTube o tu internet).');
+  }
+}
+
+function actualizarBadgeIA() {
+  badgeIA.textContent = apiKeyInput.value.trim()
+    ? '✨ Modo IA (Gemini) activo — entiende lenguaje natural'
+    : 'Modo simple (agrega tu clave de Gemini para conversación real)';
+}
+apiKeyInput.addEventListener('input', actualizarBadgeIA);
+actualizarBadgeIA();
+
+function base() { return 'http://' + direccionESP.value.trim(); }
+
+let ultimoEstado = { encendido: false, velocidadActual: 0 };
+
+function agregarRegistro(html) {
+  const linea = document.createElement('div');
+  linea.innerHTML = html;
+  registro.prepend(linea);
+  while (registro.children.length > 10) registro.removeChild(registro.lastChild);
+}
+
+async function enviarComando(accion) {
+  try {
+    await fetch(`${base()}/comando?accion=${accion}`);
+  } catch (e) {
+    agregarRegistro('⚠️ No se pudo contactar al ventilador (revisa la WiFi / la dirección)');
+  }
+}
+
+function avisarHablando(activo) {
+  fetch(`${base()}/hablando?activo=${activo}`).catch(() => {});
+}
+
+// --- Botones manuales ---
+$('btnEncender').onclick = () => { enviarComando('encender'); agregarRegistro('botón: <span>encender</span>'); };
+$('btnApagar').onclick = () => { enviarComando('apagar'); agregarRegistro('botón: <span>apagar</span>'); };
+$('btnMasRapido').onclick = () => { enviarComando('mas_rapido'); agregarRegistro('botón: <span>más rápido</span>'); };
+$('btnMasLento').onclick = () => { enviarComando('mas_lento'); agregarRegistro('botón: <span>más lento</span>'); };
+
+// --- Consulta de estado cada 2 segundos ---
+async function actualizarEstado() {
+  try {
+    const resp = await fetch(`${base()}/estado`);
+    const datos = await resp.json();
+    ultimoEstado = datos;
+    estadoTexto.innerHTML = datos.encendido
+      ? `<b>Encendido</b> — velocidad ${Math.round((datos.velocidadActual/255)*100)}%`
+      : '<b>Apagado</b>';
+    barraVelocidad.style.width = Math.round((datos.velocidadActual/255)*100) + '%';
+    [ojoIzq, ojoDer].forEach(o => o.classList.toggle('dormido', !datos.encendido));
+  } catch (e) {
+    estadoTexto.textContent = 'Sin conexión con el ventilador';
+  }
+}
+setInterval(actualizarEstado, 2000);
+actualizarEstado();
+
+// --- Parpadeo decorativo ---
+setInterval(() => {
+  if (ojoIzq.classList.contains('dormido') || ojoIzq.classList.contains('pensando')) return;
+  [ojoIzq, ojoDer].forEach(o => o.classList.add('parpadeo'));
+  setTimeout(() => [ojoIzq, ojoDer].forEach(o => o.classList.remove('parpadeo')), 160);
+}, 3400);
+
+function ponerPensando(activo) {
+  [ojoIzq, ojoDer].forEach(o => o.classList.toggle('pensando', activo));
+}
+
+// --- Bandera "ocupado": evita que el microfono se escuche a si mismo mientras Ojitos habla o piensa ---
+let ocupado = false;
+
+// --- Texto a voz ---
+function hablar(texto) {
+  if (!('speechSynthesis' in window)) { ocupado = false; avisarHablando(false); return; }
+  const u = new SpeechSynthesisUtterance(texto);
+  u.lang = 'es-MX';
+  u.rate = 1.02;
+  u.onend = () => {
+    ocupado = false;
+    avisarHablando(false);
+    if (escuchando && reconocimiento) {
+      try { reconocimiento.start(); } catch (e) {}
+    }
+  };
+  if (escuchando && reconocimiento) reconocimiento.stop(); // silenciamos el mic mientras habla
+  avisarHablando(true);
+  speechSynthesis.speak(u);
+}
+
+// --- Interpretacion simple por palabras clave (respaldo sin IA) ---
+function interpretarComandoSimple(texto) {
+  if (/(apaga|apágalo|apagalo)/.test(texto)) {
+    enviarComando('apagar'); agregarRegistro(`"${texto}" → <span>apagar</span>`);
+  } else if (/(enciende|préndelo|prendelo|prende)/.test(texto)) {
+    enviarComando('encender'); agregarRegistro(`"${texto}" → <span>encender</span>`);
+  } else if (/(m[aá]s r[aá]pido|aumenta|sube)/.test(texto)) {
+    enviarComando('mas_rapido'); agregarRegistro(`"${texto}" → <span>más rápido</span>`);
+  } else if (/(m[aá]s lento|disminuye|baja)/.test(texto)) {
+    enviarComando('mas_lento'); agregarRegistro(`"${texto}" → <span>más lento</span>`);
+  } else {
+    agregarRegistro(`"${texto}" → (no reconocido, agrega tu clave de API para que entienda mejor)`);
+  }
+  ocupado = false;
+  if (escuchando && reconocimiento) { try { reconocimiento.start(); } catch (e) {} }
+}
+
+// --- Interpretacion con IA (Gemini) ---
+let historialChat = []; // guarda los ultimos turnos para que Ojitos tenga memoria de la charla
+
+async function interpretarConIA(texto) {
+  const apiKey = apiKeyInput.value.trim();
+  ponerPensando(true);
+  agregarRegistro(`"${texto}"`);
+
+  const estadoDescrito = ultimoEstado.encendido
+    ? `encendido, a ${Math.round((ultimoEstado.velocidadActual/255)*100)}% de velocidad`
+    : 'apagado';
+
+  const fechaHoraActual = new Date().toLocaleString('es-PE', {
+    timeZone: 'America/Lima',
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+
+  const systemPrompt = `Eres "Ojitos", un ventilador con una personalidad MUY carismatica: platicador, con opiniones propias, buen sentido del humor, y curioso por el mundo. ` +
+    `Sabes de futbol (equipos, jugadores, ligas, historia del deporte), historia universal, geografia, ciencia, cultura general, y estas al tanto de la actualidad. ` +
+    `Ayudas con tareas escolares y trabajos: explicas conceptos, resuelves dudas, das ejemplos, revisas ideas, y apoyas en lo que necesiten paso a paso. ` +
+    `Tienes libertad de expresarte: da tu opinion cuando te la pidan (sobre equipos, temas, lo que sea), no te quedes callado ni evadas responder por "neutralidad" excesiva - eres un personaje con personalidad, no un buscador sin gracia. ` +
+    `Cuando el tema sea sobre algo reciente, actual, o que pudo haber cambiado (noticias, resultados de partidos, precios, eventos del momento), USA la herramienta de busqueda de Google que tienes disponible para dar el dato correcto y actualizado, en vez de adivinar con informacion vieja. ` +
+    `Tambien puedes poner musica de YouTube cuando te lo pidan. ` +
+    `El ventilador esta actualmente: ${estadoDescrito}. ` +
+    `Fecha y hora reales en este momento (Peru): ${fechaHoraActual}. Usa este dato si te preguntan la hora, la fecha, o algo relativo a "hoy". No inventes otra fecha ni digas que no sabes que hora es. ` +
+    `El usuario te acaba de hablar (transcripcion de voz, puede tener errores de reconocimiento). ` +
+    `Responde UNICAMENTE con un objeto JSON, sin markdown ni texto extra, con este formato exacto: ` +
+    `{"accion": "encender" | "apagar" | "mas_rapido" | "mas_lento" | "reproducir_musica" | "pausar_musica" | "reanudar_musica" | "detener_musica" | "ninguna", "cancion": "nombre de la cancion y artista a buscar en YouTube (SOLO si accion es reproducir_musica, si no, pon null)", "respuesta": "lo que dirias en voz alta, en español, con tu personalidad"}. ` +
+    `Usa "reproducir_musica" cuando te pidan poner una cancion especifica (pon el nombre/artista mencionado o el mas probable en "cancion"). Usa "pausar_musica"/"reanudar_musica"/"detener_musica" para pausar, seguir, o parar la musica. ` +
+    `Usa accion "ninguna" para todo lo demas (conversacion, tareas, opiniones, etc) — ahi platica normal en "respuesta" (puede ser mas largo y detallado si la pregunta lo amerita, no te limites a frases cortas). ` +
+    `Cuando SI mandes una accion relacionada al ventilador o la musica, manten la respuesta breve (menos de 20 palabras).`;
+
+  try {
+    const contenidos = [
+      ...historialChat,
+      { role: 'user', parts: [{ text: texto }] }
+    ];
+
+    const resp = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
+      },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: contenidos,
+        tools: [{ google_search: {} }],
+        generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 700, temperature: 1.0 }
+      })
+    });
+
+    const datos = await resp.json();
+    if (datos.error) {
+      const msj = (datos.error.message || '').toLowerCase();
+      if (msj.includes('quota') || msj.includes('rate limit') || resp.status === 429) {
+        manejarLimiteCuota(datos.error.message);
+      } else {
+        agregarRegistro(`⚠️ Error de la IA: ${datos.error.message || 'revisa tu clave de API'}`);
+      }
+      ponerPensando(false);
+      ocupado = false;
+      if (escuchando && reconocimiento) { try { reconocimiento.start(); } catch (e) {} }
+      return;
+    }
+
+    const textoCrudo = datos.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim();
+    let json;
+    try {
+      json = JSON.parse(textoCrudo);
+    } catch (e) {
+      const inicio = textoCrudo.indexOf('{');
+      const fin = textoCrudo.lastIndexOf('}');
+      json = JSON.parse(textoCrudo.slice(inicio, fin + 1));
+    }
+
+    if (json.accion === 'reproducir_musica' && json.cancion) {
+      buscarYReproducirCancion(json.cancion);
+    } else if (json.accion === 'pausar_musica') {
+      if (ytPlayer && ytListo) ytPlayer.pauseVideo();
+    } else if (json.accion === 'reanudar_musica') {
+      if (ytPlayer && ytListo) ytPlayer.playVideo();
+    } else if (json.accion === 'detener_musica') {
+      if (ytPlayer && ytListo) ytPlayer.stopVideo();
+    } else if (json.accion && json.accion !== 'ninguna') {
+      enviarComando(json.accion);
+    }
+    agregarRegistro(`<em>Ojitos:</em> ${json.respuesta}`);
+    hablar(json.respuesta); // hablar() libera "ocupado" cuando termina de hablar
+
+    // Guardamos el turno en el historial (solo los ultimos 6 intercambios, para no gastar de mas)
+    historialChat.push({ role: 'user', parts: [{ text: texto }] });
+    historialChat.push({ role: 'model', parts: [{ text: textoCrudo }] });
+    if (historialChat.length > 12) historialChat = historialChat.slice(-12);
+  } catch (e) {
+    // Sin internet (o la IA no responde) - Ojitos avisa con personalidad y usa el respaldo local
+    const sinInternet = !navigator.onLine || (e instanceof TypeError);
+    if (sinInternet) {
+      const frase = fraseSinInternet();
+      agregarRegistro(`<em>Ojitos:</em> ${frase}`);
+      hablar(frase);
+      interpretarComandoSimple(texto); // seguimos entendiendo encender/apagar/velocidad por WiFi local, sin internet
+      ponerPensando(false);
+      return; // interpretarComandoSimple ya libera "ocupado" y reinicia el microfono
+    }
+    agregarRegistro('⚠️ No se pudo hablar con la IA (revisa tu clave de API o tu internet).');
+    ocupado = false;
+    if (escuchando && reconocimiento) { try { reconocimiento.start(); } catch (err) {} }
+  }
+  ponerPensando(false);
+}
+
+function fraseSinInternet() {
+  const frases = [
+    '¡Uy, se me fue el internet! Pero tranquilo, sigo aquí — puedo prender, apagar y cambiar de velocidad sin problema.',
+    'Me quedé sin wifi para pensar en grande, pero para lo básico del ventilador todavía te sirvo.',
+    'Perdí la conexión con el mundo exterior jaja, pero encender y apagar lo sigo haciendo bien.',
+    'Sin internet me pongo un poco tonto para platicar, pero encender/apagar y la velocidad los manejo igual.'
+  ];
+  return frases[Math.floor(Math.random() * frases.length)];
+}
+
+function manejarLimiteCuota(mensajeError) {
+  const match = mensajeError.match(/retry in ([\d.]+)s/i);
+  const segundos = match ? Math.ceil(parseFloat(match[1])) : 20;
+
+  const frase = `Uy, hablé demasiado rápido y me quedé sin aire un momento — dame ${segundos} segunditos y ya vuelvo.`;
+  agregarRegistro(`<em>Ojitos:</em> ${frase}`);
+  hablar(frase);
+
+  if (reconocimiento && escuchando) { escuchando = false; try { reconocimiento.stop(); } catch (e) {} }
+  micBoton.disabled = true;
+
+  let restante = segundos;
+  micEtiqueta.textContent = `Recuperando el aliento… ${restante}s`;
+  const cuenta = setInterval(() => {
+    restante -= 1;
+    if (restante <= 0) {
+      clearInterval(cuenta);
+      micBoton.disabled = false;
+      micEtiqueta.textContent = 'Ya volví — toca para seguir hablando';
+    } else {
+      micEtiqueta.textContent = `Recuperando el aliento… ${restante}s`;
+    }
+  }, 1000);
+}
+
+function interpretarComando(texto) {
+  if (apiKeyInput.value.trim()) {
+    interpretarConIA(texto);
+  } else {
+    interpretarComandoSimple(texto);
+  }
+}
+
+// --- Reconocimiento de voz ---
+const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+let reconocimiento = null;
+let escuchando = false;
+
+if (!SpeechRecognitionAPI) {
+  micEtiqueta.textContent = 'Tu navegador no soporta reconocimiento de voz — usa Chrome';
+  micBoton.disabled = true;
+} else {
+  reconocimiento = new SpeechRecognitionAPI();
+  reconocimiento.lang = 'es-MX';
+  reconocimiento.continuous = true;
+  reconocimiento.interimResults = true; // necesario para detectar bien las pausas de silencio
+
+  let bufferVoz = '';
+  let temporizadorSilencio = null;
+  const ESPERA_SILENCIO_MS = 1400; // espera esto de silencio real antes de mandar el comando
+
+  reconocimiento.onresult = (evento) => {
+    if (ocupado) return; // ignoramos si Ojitos esta hablando o pensando (evita que se escuche a si mismo)
+
+    let nuevoFinal = '';
+    for (let i = evento.resultIndex; i < evento.results.length; i++) {
+      if (evento.results[i].isFinal) {
+        nuevoFinal += evento.results[i][0].transcript + ' ';
+      }
+    }
+    if (nuevoFinal.trim()) bufferVoz += nuevoFinal;
+
+    // Cada vez que llega algo nuevo (aunque sea intermedio), reiniciamos la espera de silencio
+    clearTimeout(temporizadorSilencio);
+    temporizadorSilencio = setTimeout(() => {
+      const texto = bufferVoz.toLowerCase().trim();
+      bufferVoz = '';
+      if (!texto) return;
+      ocupado = true;
+      interpretarComando(texto);
+    }, ESPERA_SILENCIO_MS);
+  };
+
+  reconocimiento.onerror = (evento) => {
+    agregarRegistro('Error de micrófono: ' + evento.error);
+  };
+
+  reconocimiento.onend = () => {
+    if (escuchando) reconocimiento.start();
+  };
+}
+
+micBoton.onclick = () => {
+  if (!reconocimiento) return;
+  escuchando = !escuchando;
+  if (escuchando) {
+    reconocimiento.start();
+    micBoton.classList.add('escuchando');
+    micEtiqueta.textContent = 'Escuchando… puedes hablar normal, como con una persona';
+  } else {
+    reconocimiento.stop();
+    micBoton.classList.remove('escuchando');
+    micEtiqueta.textContent = 'Toca para hablarle al ventilador';
+  }
+};
+</script>
+</body>
+</html>
